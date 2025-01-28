@@ -1,164 +1,142 @@
-import React, { useState, useEffect } from 'react';
-import { ethers } from 'ethers';
+import React, { useState } from "react";
+import { ethers } from "ethers";
+import './App.css';
+
+// import abi from "./abi.json";
 
 const App = () => {
-  const [amount, setAmount] = useState('');
-  const [balance, setBalance] = useState('0');
+  const [account, setAccount] = useState(null);
   const [contract, setContract] = useState(null);
-  const [connected, setConnected] = useState(false);
-  const [error, setError] = useState('');
+  const [balance, setBalance] = useState("0");
+  const [inputValue, setInputValue] = useState("");
 
-  const contractAddress = "0xf8e81D47203A594245E36C48e151709F0C19fBe8";
-  const contractABI = [/* Your ABI here */];
-
-  const checkIfWalletIsConnected = async () => {
-    try {
-      if (!window.ethereum) {
-        setError('Please install MetaMask!');
-        return;
-      }
-
-      const accounts = await window.ethereum.request({ method: 'eth_accounts' });
-      if (accounts.length > 0) {
-        setupEthereumConnection();
-      }
-    } catch (error) {
-      console.error("Error checking wallet connection:", error);
-      setError('Error connecting to MetaMask');
-    }
-  };
-
-  const setupEthereumConnection = async () => {
-    try {
-      const provider = new ethers.providers.Web3Provider(window.ethereum);
-      const signer = provider.getSigner();
-      const contractInstance = new ethers.Contract(contractAddress, contractABI, signer);
-      setContract(contractInstance);
-      setConnected(true);
-      updateBalance();
-    } catch (error) {
-      console.error("Setup error:", error);
-      setError('Error setting up connection');
-    }
-  };
+  const contractAddress = "0xD7ACd2a9FD159E69Bb102A1ca21C9a3e3A5F771B"; // Replace with your deployed contract address
 
   const connectWallet = async () => {
-    try {
-      if (!window.ethereum) {
-        setError('Please install MetaMask!');
-        return;
-      }
+    if (window.ethereum) {
+      try {
+        // Request MetaMask connection
+        const accounts = await window.ethereum.request({
+          method: "eth_requestAccounts",
+        });
 
-      await window.ethereum.request({ 
-        method: 'eth_requestAccounts' 
-      });
-      
-      setupEthereumConnection();
-    } catch (error) {
-      console.error("Connection error:", error);
-      setError('Error connecting wallet');
+        const provider = new ethers.BrowserProvider(window.ethereum);
+        const signer = await provider.getSigner();
+        const address = accounts[0];
+
+        const contractInstance = new ethers.Contract(
+          contractAddress,
+          abi,
+          signer
+        );
+
+        setAccount(address);
+        setContract(contractInstance);
+
+        alert(`Connected: ${address}`);
+        await fetchBalance(contractInstance); // Fetch initial balance
+      } catch (error) {
+        console.error("Error connecting to wallet:", error);
+      }
+    } else {
+      alert("MetaMask is not installed! Please install MetaMask to continue.");
     }
   };
 
-  const updateBalance = async () => {
+  const fetchBalance = async (contractInstance) => {
+    try {
+      const balance = await contractInstance.getBalance();
+      setBalance(ethers.formatEther(balance)); // Convert to Ether
+    } catch (error) {
+      console.error("Error fetching balance:", error);
+    }
+  };
+
+  const depositEther = async () => {
     if (contract) {
       try {
-        const bal = await contract.getBalance();
-        setBalance(ethers.utils.formatEther(bal));
+        const tx = await contract.deposit({
+          value: ethers.parseEther(inputValue), // Convert input value to Wei
+        });
+        await tx.wait();
+        alert("Deposit successful!");
+        await fetchBalance(contract);
       } catch (error) {
-        console.error("Balance update error:", error);
-        setError('Error fetching balance');
+        console.error("Error depositing Ether:", error);
       }
+    } else {
+      alert("Please connect your wallet first.");
     }
   };
 
-  const handleDeposit = async () => {
-    try {
-      const tx = await contract.deposit(ethers.utils.parseEther(amount), {
-        value: ethers.utils.parseEther(amount)
-      });
-      await tx.wait();
-      updateBalance();
-      setAmount('');
-    } catch (error) {
-      console.error("Deposit error:", error);
-      setError('Error making deposit');
-    }
-  };
-
-  const handleWithdraw = async () => {
-    try {
-      const tx = await contract.withdraw(ethers.utils.parseEther(amount));
-      await tx.wait();
-      updateBalance();
-      setAmount('');
-    } catch (error) {
-      console.error("Withdrawal error:", error);
-      setError('Error making withdrawal');
-    }
-  };
-
-  useEffect(() => {
-    checkIfWalletIsConnected();
-    
-    if (window.ethereum) {
-      window.ethereum.on('accountsChanged', checkIfWalletIsConnected);
-      window.ethereum.on('chainChanged', () => window.location.reload());
-    }
-
-    return () => {
-      if (window.ethereum) {
-        window.ethereum.removeListener('accountsChanged', checkIfWalletIsConnected);
+  const withdrawEther = async () => {
+    if (contract) {
+      try {
+        const tx = await contract.withdraw(ethers.parseEther(inputValue)); // Convert input value to Wei
+        await tx.wait();
+        alert("Withdrawal successful!");
+        await fetchBalance(contract);
+      } catch (error) {
+        console.error("Error withdrawing Ether:", error);
       }
-    };
-  }, []);
+    } else {
+      alert("Please connect your wallet first.");
+    }
+  };
 
   return (
-    <div className="max-w-md mx-auto mt-10 p-6 bg-white rounded-lg shadow-xl">
-      <h1 className="text-2xl font-bold mb-6">Wallet DApp</h1>
-      
-      {error && (
-        <div className="mb-4 p-3 bg-red-100 text-red-700 rounded">
-          {error}
-        </div>
-      )}
+    <div className="App" style={{ padding: "20px", textAlign: "left" }}>
+      <h1>Simple DApp</h1>
 
-      {!connected ? (
-        <button 
+      {!account ? (
+        <button
           onClick={connectWallet}
-          className="w-full bg-blue-500 text-white py-2 px-4 rounded hover:bg-blue-600"
+          style={{
+            padding: "10px 20px",
+            fontSize: "16px",
+            cursor: "pointer",
+            marginBottom: "20px",
+          }}
         >
           Connect Wallet
         </button>
       ) : (
-        <div className="space-y-4">
-          <p className="text-lg">Balance: {balance} ETH</p>
-          
-          <input
-            type="number"
-            value={amount}
-            onChange={(e) => setAmount(e.target.value)}
-            placeholder="Amount in ETH"
-            className="w-full p-2 border rounded"
-          />
-          
-          <div className="flex space-x-4">
-            <button
-              onClick={handleDeposit}
-              className="flex-1 bg-green-500 text-white py-2 px-4 rounded hover:bg-green-600"
-            >
-              Deposit
-            </button>
-            
-            <button
-              onClick={handleWithdraw}
-              className="flex-1 bg-red-500 text-white py-2 px-4 rounded hover:bg-red-600"
-            >
-              Withdraw
-            </button>
-          </div>
-        </div>
+        <p>Connected Wallet: {account}</p>
       )}
+
+      <h3>Contract Balance: {balance} ETH</h3>
+
+      <div style={{ marginTop: "20px" }}>
+        <input
+          type="number"
+          value={inputValue}
+          onChange={(e) => setInputValue(e.target.value)}
+          placeholder="Enter amount (ETH)"
+          style={{ padding: "10px", fontSize: "16px", width: "200px" }}
+        />
+        <br />
+        <button
+          onClick={depositEther}
+          style={{
+            padding: "10px 20px",
+            margin: "10px",
+            fontSize: "16px",
+            cursor: "pointer",
+          }}
+        >
+          Deposit Ether
+        </button>
+        <button
+          onClick={withdrawEther}
+          style={{
+            padding: "10px 20px",
+            fontSize: "16px",
+            cursor: "pointer",
+          }}
+        >
+          Withdraw Ether
+        </button>
+      </div>
     </div>
   );
 };
