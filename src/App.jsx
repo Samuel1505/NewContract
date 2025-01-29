@@ -85,7 +85,7 @@ const App = () => {
 
   return (
     <div className="App" style={{ padding: "20px", textAlign: "left" }}>
-      <h1>Simple DApp</h1>
+      <h1>Contract Dapp</h1>
 
       {!account ? (
         <button
