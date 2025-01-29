@@ -54,7 +54,7 @@ const App = () => {
   const depositEther = async () => {
     if (contract) {
       try {
-        const tx = await contract.deposit({
+        const tx = await contract.deposit(ethers.parseEther(inputValue),{
           value: ethers.parseEther(inputValue), // Convert input value to Wei
         });
         await tx.wait();
