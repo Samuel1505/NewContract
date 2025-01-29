@@ -1,8 +1,7 @@
 import React, { useState } from "react";
 import { ethers } from "ethers";
 import './App.css';
-
-// import abi from "./abi.json";
+import abi from "./abi.json";
 
 const App = () => {
   const [account, setAccount] = useState(null);
